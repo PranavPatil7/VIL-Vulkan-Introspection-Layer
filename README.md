@@ -26,10 +26,7 @@ Features:
 	- enabled features
 	- overall statistics on used memory and available memory budget
 
-This is still in an early stage of development, bug reports and feedback welcome.
-See the [rough overview](docs/features.md) over the currently implemented vulkan 
-commands/extensions. Keep in mind that using extensions/features not supported
-by the layer at the moment might cause crashes.
+
 
 Intended much more as a live debugging tool than a profiling tool.
 Does not have all the features of existing debugging tools (such as [renderdoc](https://github.com/baldurk/renderdoc))
@@ -141,47 +138,3 @@ There are multiple ways of using the introspection gui:
 	  build config or even completely removed from the layer in future).
 	  You can force it via the environment variable `VIL_HOOK_OVERLAY=1`.
 
-## About retail games
-
-Using this layer in retail application/games (i.e. applications you don't develop yourself,
-without available source code or debugging symbols) **IS NOT OFFICIALLY SUPPORTED**.
-There are multiple reasons for this:
-
-- It can be expected that the layer will cause issues in quite some games,
-  especially in this early stage of development. Bug reports of the
-  form "Game XY crashes when enabling this layer" are not too useful since
-  it would require installing Game XY and then trying to reverse-engineer
-  what it does to cause a crash in the layer. Sometimes, the result would
-  be that the game/application simply does not follow the vulkan spec
-  and while the driver can handle it, the layer cannot.
-- Using this layer in games might trigger anti-cheat mechanisms.
-  Using this layer in multiplayer games might get you banned.
-  Even just playing games that include a multiplayer mode locally with the 
-  layer might get you in trouble. Just don't do it.
-- Usage of this layer in retail products might be motivated by abuse.
-  Keep in mind that while game developers usually have no problem with
-  players sharing videos or screenshots of the gameplay; extracting
-  textures, models, raw framebuffer data or rendering techniques from the game
-  (and then distributing them) might not be in the interest of the developer
-  or fair use of the material. This is not the usecase this layer 
-  is intended for and not a usecase that will be supported in any way.
-
-With that out of the way, there is nothing per se wrong with using the
-layer in retail products and games you have not written yourself. As long as you
-don't expect us to make it to work or distribute the results.
-When you can point out what *exactly* is causing the layer to crash with a
-specific game or fix a problem inside the layer to allow using it with
-a retail product, we definitely want to hear of it. But additional code paths
-inside the layer that work around specific *game issues* will not
-be accepted.
-
-# License
-
-SPDX-License-Identifier: GPL-3.0-only
-
-Unless stated otherwise, code and assets in this repository are licensed under 
-GPLv3. Contributors [don't have to sign a CLA](https://drewdevault.com/2018/10/05/Dont-sign-a-CLA.html).
-
-Note that since this is a dynamically loaded vulkan layer and not a library 
-you link your application against, using this in production of proprietary 
-products should not be a problem and is inside the intended usecase.
