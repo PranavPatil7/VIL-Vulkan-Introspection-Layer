@@ -1,0 +1,259 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "**.c"
+      - "**.cpp"
+      - "**.h"
+      - "**.hpp"
+      - "**.inl"
+      - "**.comp"
+      - "**.vert"
+      - "**.frag"
+      - "**meson.build"
+      - "**ci.yml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "**.c"
+      - "**.cpp"
+      - "**.h"
+      - "**.hpp"
+      - "**.inl"
+      - "**.comp"
+      - "**.vert"
+      - "**.frag"
+      - "*meson.build"
+
+# NOTE: we currently don't test all permutations of {release, debug, ...},
+# {tracy, !tracy}, {gcc, clang, msvc, msvc-ninja} since it would be many
+
+# TODO: integration tests not enabled at the moment.
+#   The vulkan loader on the ci ubuntu image crashes randomly on init.
+# TODO: using old validation layers for integration tests. Build from source?
+#   could use build cache or something
+
+jobs:
+  linux-gcc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - run: pip install meson ninja
+    - run: sudo apt-get -y update
+    - name: Install deps
+      run: sudo apt-get -y -f install libvulkan-dev libvulkan1 vulkan-tools glslang-tools
+        libxkbcommon-dev libwayland-dev libxcb1-dev wayland-protocols libxcb-ewmh-dev
+        libxcb-icccm4-dev libxcb-shm0-dev libxcb-present-dev libxcb-xinput-dev libxcb-xkb-dev
+        libxkbcommon-x11-dev libx11-dev libx11-xcb-dev vulkan-validationlayers valgrind
+      # TODO: integration tests run in theory but crash inside vulkan
+      # loader on ci, can't reproduce locally :(
+    - run: meson setup build/ --backend=ninja
+        -Dunit-tests=true
+        -Djson-config-absolute-path=true
+        -Dintegration-tests=false
+        -Dx11-hook=false
+        -Dtracy=true
+        -Dwerror=true
+      env:
+        CC: gcc
+    # TODO: no idea why this is needed using 'meson test' but not 'ninja test'.
+    # sounds like a meson bug.
+    # - run: ninja -C build subprojects/vkmockicd/libVkICD_mock_icd.so
+    # meson test -C build/ -v
+    # valgrind --leak-check=full?
+    - run: meson test -C build
+        --wrapper 'valgrind --leak-check=full --error-exitcode=1 --suppressions=../docs/valgrind.sup --gen-suppressions=all'
+        --print-errorlogs
+      # NOTE: the ci cpus seem to need this for tracy. Might result
+      # in issues (inconsistent timings between cpu cores or something),
+      # we don't care about it here
+      env:
+        TRACY_NO_INVARIANT_CHECK: 1
+
+  linux-gcc-release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - run: pip install meson ninja
+    - run: sudo apt-get -y update
+    - name: Install deps
+      run: sudo apt-get -y -f install libvulkan-dev libvulkan1 vulkan-tools glslang-tools
+        libxkbcommon-dev libwayland-dev libxcb1-dev wayland-protocols libxcb-ewmh-dev
+        libxcb-icccm4-dev libxcb-shm0-dev libxcb-present-dev libxcb-xinput-dev libxcb-xkb-dev
+        libxkbcommon-x11-dev libx11-dev libx11-xcb-dev
+    - run: meson setup build/ --backend=ninja
+        -Dunit-tests=true
+        -Dintegration-tests=false
+        -Dx11-hook=false
+        -Dbuildtype=release
+        -Dwerror=true
+      env:
+        CC: gcc
+    - run: meson test -C build/ -v
+
+  linux-clang:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - name: Set up Clang
+      uses: egor-tensin/setup-clang@v1
+      with:
+        version: latest
+    - run: pip install meson ninja
+    - run: sudo apt-get -y update
+    - name: Install deps
+      run: sudo apt-get -y -f install libvulkan-dev libvulkan1 vulkan-tools glslang-tools
+        libxkbcommon-dev libwayland-dev libxcb1-dev wayland-protocols libxcb-ewmh-dev
+        libxcb-icccm4-dev libxcb-shm0-dev libxcb-present-dev libxcb-xinput-dev libxcb-xkb-dev
+        libxkbcommon-x11-dev libx11-dev libx11-xcb-dev
+    - run: meson setup build/ --backend=ninja
+        -Dunit-tests=true
+        -Dintegration-tests=false
+        -Dx11-hook=false
+        -Dwerror=true
+    - run: meson test -C build/ -v
+
+  linux-clang-tracy-debugoptimized:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - name: Set up Clang
+      uses: egor-tensin/setup-clang@v1
+      with:
+        version: latest
+    - run: pip install meson ninja
+    - run: sudo apt-get -y update
+    - name: Install deps
+      run: sudo apt-get -y -f install libvulkan-dev libvulkan1 vulkan-tools glslang-tools
+        libxkbcommon-dev libwayland-dev libxcb1-dev wayland-protocols libxcb-ewmh-dev
+        libxcb-icccm4-dev libxcb-shm0-dev libxcb-present-dev libxcb-xinput-dev libxcb-xkb-dev
+        libxkbcommon-x11-dev libx11-dev libx11-xcb-dev
+    - run: meson setup build/ --backend=ninja
+        -Dunit-tests=true
+        -Dintegration-tests=false
+        -Dx11-hook=false
+        -Dtracy=true
+        -Dbuildtype=debugoptimized
+        -Dwerror=true
+    - run: meson test -C build/ -v
+
+  # See https://dvdhrm.github.io/2021/04/21/meson-msvc-github-actions/
+  windows-ninja:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - run: pip install ninja
+    # TODO, tmp workaround: See https://github.com/mesonbuild/meson/pull/9918
+    - run: pip install git+https://github.com/frida/meson.git@f7f25b19a8d71cebf8e2934733eb041eb6862eee
+    - name: Prepare MSVC
+      uses: bus1/cabuild/action/msdevshell@v1
+      with:
+        architecture: x64
+    - run: meson setup build/ --backend=ninja
+        -Dunit-tests=true
+        -Dwerror=true
+    - run: meson test -C build/ -v
+
+  windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - run: pip install ninja
+    # TODO, tmp workaround: See https://github.com/mesonbuild/meson/pull/9918
+    - run: pip install git+https://github.com/frida/meson.git@f7f25b19a8d71cebf8e2934733eb041eb6862eee
+    - name: Prepare MSVC
+      uses: bus1/cabuild/action/msdevshell@v1
+      with:
+        architecture: x64
+    - run: meson setup build/
+        -Dunit-tests=true
+        -Dintegration-tests=false
+        -Dwerror=true
+    - run: meson test -C build/ -v
+
+  windows-release:
+    runs-on: windows-latest
+    env:
+      VULKAN_SDK: c:\VulkanSDK\1.2.198.1
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    # Vulkan SDK, needed for integration tests
+    # - name: Download Vulkan SDK
+    #   run: curl -L --silent --show-error --output VulkanSDK.exe https://sdk.lunarg.com/sdk/download/1.2.198.1/windows/VulkanSDK-1.2.198.1-Installer.exe
+    # - name: Install Vulkan SDK
+    #   run: .\VulkanSDK.exe --accept-licenses --default-answer --confirm-command install
+    - run: pip install ninja
+    # TODO, tmp workaround: See https://github.com/mesonbuild/meson/pull/9918
+    - run: pip install git+https://github.com/frida/meson.git@f7f25b19a8d71cebf8e2934733eb041eb6862eee
+    - name: Prepare MSVC
+      uses: bus1/cabuild/action/msdevshell@v1
+      with:
+        architecture: x64
+    - run: meson setup build/
+        -Dunit-tests=true
+        -Dintegration-tests=false
+        -Dbuildtype=release
+        -Ddebug=true
+        -Dwerror=true
+    - run: meson test -C build/ -v
+    - name: Upload binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: Windows Binaries
+        path: |
+          build/VkLayer_live_introspection.dll
+          build/VkLayer_live_introspection.json
+          build/VkLayer_live_introspection.lib
+          build/VkLayer_live_introspection.pdb
+          build/register_layer.bat
+
+
+  windows-release-tracy:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - run: pip install ninja
+    # TODO, tmp workaround: See https://github.com/mesonbuild/meson/pull/9918
+    - run: pip install git+https://github.com/frida/meson.git@f7f25b19a8d71cebf8e2934733eb041eb6862eee
+    - name: Prepare MSVC
+      uses: bus1/cabuild/action/msdevshell@v1
+      with:
+        architecture: x64
+    - run: meson setup build/
+        -Dunit-tests=true
+        -Dbuildtype=release
+        -Dtracy=true
+        -Dwerror=true
+    - run: meson test -C build/ -v
+
+# TODO:
+# - test 32-bit build? Not sure if we even want to support it though.
+# - test mingw?  Just not calling vs vars script actually already calls mingw.
+#   But the version does not seem to be new enough
+# - test other gcc versions? Current ubuntu build only has v9

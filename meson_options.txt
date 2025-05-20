@@ -1,0 +1,45 @@
+# whether to build with support for x11 hooked overlays
+# disabled by default on windows
+# even when this is false, allows to create overlays via the API or
+# use vil in a separate window on x11
+option('x11-hook', type: 'boolean', value: true)
+
+# whether to build the example
+option('example', type: 'boolean', value: false)
+
+# whether to build the tests
+# NOTE: due to technical reasons, the tests are compiled into the layer 
+# library itself. Disabling this should slightly decrease the size of the library
+option('unit-tests', type: 'boolean', value: false)
+option('integration-tests', type: 'boolean', value: false)
+
+# whether to build with tracy for profiling
+# will make the layer less lightweight and add potential error points
+option('tracy', type: 'boolean', value: false)
+
+# Whether to build the standlone application (just an image viewer atm).
+# Setting this to false makes the layer a bit more lightweight.
+option('with-standalone', type: 'boolean', value: true)
+
+# Enable support for callstack capturing (still WIP)
+# Disabling this makes the layer a bit more lightweight.
+option('with-callstacks', type: 'boolean', value: true)
+
+# whether creating a window is supported
+# on linux, if this and x11-hook is false, a lot of dependencies
+# are removed from the layer
+option('window', type: 'boolean', value: true)
+
+# use libdw if possible for callstacks (only on unix)
+# irrelevant if callstacks are disabled
+option('libdw', type: 'boolean', value: true)
+
+# whether to use the absolute build path in the layer json
+# useful e.g. to run the integration tests without installing, as we
+# do in ci
+option('json-config-absolute-path', type: 'boolean', value: false)
+
+# Whether to throw on failed assertion.
+# Mainly used for static analysis, to make it assume the conditions
+# we assert on.
+option('throw-on-assert', type: 'boolean', value: false)

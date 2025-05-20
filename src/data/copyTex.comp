@@ -1,0 +1,35 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+layout(local_size_x_id = 0, local_size_y_id = 1) in;
+
+#define SAMPLE_TEX_BINDING 1
+#include "sample.glsl"
+
+#ifdef WITHOUT_FORMAT
+	#define FORMAT_SPEC
+#else // WITHOUT_FORMAT
+	// our default format
+	#define FORMAT_SPEC , DefaultTexelFormat
+#endif // WITHOUT_FORMAT
+	   //
+layout(set = 0, binding = 0 FORMAT_SPEC) uniform writeonly StorageTexelBufferType outResult;
+
+layout(push_constant) uniform PCR {
+	int level;
+	uint dstOffset;
+} pcr;
+
+void main() {
+	ivec3 coords = ivec3(gl_GlobalInvocationID.xyz);
+	ivec3 size = texSize(pcr.level);
+	if(coords.x >= size.x || coords.y >= size.y || coords.z >= size.z) {
+		return;
+	}
+
+	uint id = coords.z * (size.x * size.y) + coords.y * size.x + coords.x;
+
+	imageStore(outResult, int(pcr.dstOffset + id), fetchTexRaw(coords, pcr.level));
+}
+

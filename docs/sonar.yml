@@ -1,0 +1,68 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "**.c"
+      - "**.cpp"
+      - "**.h"
+      - "**.hpp"
+      - "**.inl"
+      - "**meson.build"
+      - "**sonar.yml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "**.c"
+      - "**.cpp"
+      - "**.h"
+      - "**.hpp"
+      - "**.inl"
+      - "**meson.build"
+      - "**sonar.yml"
+
+# Original skeleton taken from 
+# https://github.com/sonarsource-cfamily-examples/linux-cmake-gh-actions-sc
+# https://github.com/sonarsource-cfamily-examples/linux-cmake-gh-actions-sc
+
+jobs:
+  sonar:
+    runs-on: ubuntu-latest
+    env:
+      BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - run: pip install meson ninja
+      # Make sure the sonar cache is persistent
+      - name: Cache Sonar
+        uses: actions/cache@v2
+        with:
+          path: /home/runner/cache-sonar
+          key: ${{ runner.os }}-cache-sonar
+      - name: Install deps
+        run: sudo apt-get -y -f install libvulkan-dev libvulkan1 vulkan-tools glslang-tools
+          libxkbcommon-dev libwayland-dev libxcb1-dev wayland-protocols libxcb-ewmh-dev
+          libxcb-icccm4-dev libxcb-shm0-dev libxcb-present-dev libxcb-xinput-dev libxcb-xkb-dev
+          libxkbcommon-x11-dev libx11-dev libx11-xcb-dev
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Install sonar-scanner and build-wrapper
+        uses: SonarSource/sonarcloud-github-c-cpp@v2
+      - name: Run build-wrapper
+        run: |
+          meson setup build/ --backend=ninja -Dunit-tests=true -Dx11-hook=false -Dthrow-on-assert=true
+          build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} meson compile -C build
+      - name: Run sonar-scanner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }} # Put the name of your token here
+        run: |
+          sonar-scanner --define sonar.cfamily.compile-commands="${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json"
+

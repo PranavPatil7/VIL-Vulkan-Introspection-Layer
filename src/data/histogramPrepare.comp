@@ -1,0 +1,49 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+layout(local_size_x = 1u, local_size_y = 1u) in;
+
+#include "histogram.glsl"
+
+layout(push_constant) uniform PCR {
+	uint channelMask;
+} pcr;
+
+layout(set = 0, binding = 0) buffer Hist {
+	HistMetadata meta;
+} hist;
+
+void main() {
+	float begin = 0;
+	float end = 0;
+	uint beginCount = 0;
+	uint endCount = 0;
+
+	for(uint i = 0u; i < 4; ++i) {
+		if((pcr.channelMask & (1u << i)) == 0) {
+			continue;
+		}
+
+		// NOTE: we know that texMin/texMax does not contains nan or inf
+		float minval = uintOrderedToFloat(hist.meta.texMin[i]);
+		if(beginCount == 0) {
+			begin = minval;
+		} else {
+			begin = min(begin, minval);
+		}
+		++beginCount;
+
+		float maxval = uintOrderedToFloat(hist.meta.texMax[i]);
+		if(endCount == 0) {
+			end = maxval;
+		} else {
+			end = max(end, maxval);
+		}
+		++endCount;
+	}
+
+	hist.meta.begin = begin;
+	hist.meta.end = end;
+}
+

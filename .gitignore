@@ -1,0 +1,9 @@
+.clangd/
+compile_commands.json
+subprojects/*/
+build/
+buildwin/
+docs/traces/
+.vs/
+.cache
+.vimspector.json
